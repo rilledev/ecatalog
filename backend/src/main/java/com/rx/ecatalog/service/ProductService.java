@@ -1,7 +1,6 @@
 package com.rx.ecatalog.service;
 
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -11,8 +10,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.rx.ecatalog.dto.CategoryDTO;
 import com.rx.ecatalog.dto.ProductDTO;
+import com.rx.ecatalog.model.Category;
 import com.rx.ecatalog.model.Product;
+import com.rx.ecatalog.repositories.CategoryRepository;
 import com.rx.ecatalog.repositories.ProductRepository;
 import com.rx.ecatalog.service.exceptions.DatabaseException;
 import com.rx.ecatalog.service.exceptions.ResourceNotFoundException;
@@ -27,6 +29,10 @@ public class ProductService {
 	@Autowired
 	private ProductRepository repository;
 	
+	@Autowired
+	private CategoryRepository categoryRepository;
+	
+	
 	@Transactional(readOnly = true)
 	public Page<ProductDTO> findAllPaged(PageRequest pageRequest){
 		Page<Product> list = repository.findAll(pageRequest);
@@ -40,19 +46,19 @@ public class ProductService {
 		return new ProductDTO(entity, entity.getCategories());
 	}
 	
-	@Transactional(readOnly = true)
+	@Transactional
 	public ProductDTO insert(ProductDTO dto) {
 		Product entity = new Product();
-		//entity.setName(dto.getName());
+		copyDtoToEntity(dto, entity);
 		entity = repository.save(entity);
 		return new ProductDTO(entity);
 	}
-	
+
 	@Transactional
 	public ProductDTO update(Long id, ProductDTO dto) {
 		try {
 		Product entity = repository.getReferenceById(id);
-		//entity.setName(dto.getName());
+		copyDtoToEntity(dto, entity);
 		entity = repository.save(entity);
 		return new ProductDTO(entity);
 		}
@@ -72,6 +78,21 @@ public class ProductService {
 		catch(DataIntegrityViolationException e) {
 			throw new DatabaseException("Falha de integridade referencial");
 		}
+	}
+	
+	private void copyDtoToEntity(ProductDTO dto, Product entity) {
+		entity.setName(dto.getName());
+		entity.setDescription(dto.getDescription());
+		entity.setDate(dto.getDate());
+		entity.setImgUrl(dto.getImgUrl());
+		entity.setPrice(dto.getPrice());
+		
+		entity.getCategories().clear();
+	    for (CategoryDTO catDto : dto.getCategories()) {
+			Category category = categoryRepository.getReferenceById(catDto.getId());
+			entity.getCategories().add(category);
+		}
+		
 	}
 }
 
